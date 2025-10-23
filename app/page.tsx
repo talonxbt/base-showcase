@@ -170,7 +170,7 @@ export default function Page() {
         Base Ecosystem — Showcase & Analytics
       </h1>
       <p className="text-neutral-300 mt-2">
-        Curated by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
+        Created by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
       </p>
     </div>
     <a
