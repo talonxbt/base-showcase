@@ -167,7 +167,7 @@ export default function Page() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              Base Ecosystem — Showcase & Analytics
+              Base Intelligence Dashboard
             </h1>
             <p className="text-neutral-300 mt-2">
               Curated by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
