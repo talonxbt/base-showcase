@@ -31,7 +31,7 @@ type RankingRow = {
   change_1d?: number;
   change_7d?: number;
   change_1m?: number;
-  fees24h?: number; // revenue dihilangkan dari UI
+  fees24h?: number;
   url?: string;
 };
 
@@ -153,7 +153,7 @@ export default function Page() {
     return arr;
   }, [ranking, search, category, sortBy]);
 
-  // tampilkan kolom Fees hanya jika ada minimal satu baris dengan fees > 0
+  // tampilkan kolom Fees hanya jika ada minimal satu baris dengan fees > 0 (header)
   const showFees = useMemo(
     () => visibleRows.some((p) => Number(p.fees24h || 0) > 0),
     [visibleRows]
@@ -170,7 +170,7 @@ export default function Page() {
               Base Intelligence Dashboard
             </h1>
             <p className="text-neutral-300 mt-2">
-              Curated by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
+              Created by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
             </p>
           </div>
 
@@ -207,6 +207,7 @@ export default function Page() {
               href="https://www.base.org/"
               target="_blank"
               className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
+              rel="noopener noreferrer"
             >
               Visit Base <ExternalLink size={16} />
             </a>
@@ -214,11 +215,24 @@ export default function Page() {
         </div>
       </header>
 
-      {/* KPI Cards (tanpa Data Source) */}
-      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+      {/* KPI Cards (4 cards termasuk Build → Base Ecosystem) */}
+      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard title="Chain TVL" value={`$${fmt.format(latestTVL || 0)}`} icon={<LineChart className="opacity-80" />} />
         <KpiCard title="7D Change" value={fmtPct(change7d)} trend={change7d} />
         <KpiCard title="Protocols on Base" value={`${protocolCount}`} />
+        <KpiCard
+          title="Build"
+          value={
+            <a
+              className="underline decoration-dotted"
+              href="https://www.base.org/ecosystem"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Base Ecosystem
+            </a>
+          }
+        />
       </section>
 
       {/* TVL Chart */}
@@ -302,7 +316,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Protocol Rankings (Top 100 Base) — no Revenue; hide zero fees & no gaps */}
+      {/* Protocol Rankings (Top 100 Base) — no Revenue; fix Fees column alignment */}
       <section className="max-w-7xl mx-auto px-4 mt-4 pb-16">
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
           {/* Header */}
@@ -323,24 +337,27 @@ export default function Page() {
             <div className="divide-y divide-neutral-800">
               {visibleRows.map((p, i) => {
                 const feesVal = Number(p.fees24h || 0);
-                const showFeeCell = showFees && feesVal > 0; // render cell Fees hanya kalau > 0
+
                 return (
                   <div
                     key={`${p.name}-${i}`}
                     className="grid grid-cols-12 px-4 py-3 items-center hover:bg-neutral-800/30"
                   >
-                    {/* Name melebar jika showFees = false */}
+                    {/* Name */}
                     <div className={`${showFees ? "col-span-3" : "col-span-5"} font-semibold`}>
                       {i + 1}. {p.name}{" "}
                       {p.symbol ? <span className="text-neutral-400 font-normal">({p.symbol})</span> : null}
                     </div>
 
+                    {/* Category */}
                     <div className="col-span-2 text-neutral-400 text-sm">{p.category || "—"}</div>
 
+                    {/* TVL */}
                     <div className="col-span-2 text-right font-medium">
                       {typeof p.tvl === "number" ? `$${fmt.format(p.tvl)}` : "—"}
                     </div>
 
+                    {/* 1d */}
                     <div
                       className={`col-span-1 text-right ${
                         Number(p.change_1d) >= 0 ? "text-emerald-400" : "text-red-400"
@@ -349,6 +366,7 @@ export default function Page() {
                       {fmtPct(p.change_1d)}
                     </div>
 
+                    {/* 7d */}
                     <div
                       className={`col-span-1 text-right ${
                         Number(p.change_7d) >= 0 ? "text-emerald-400" : "text-red-400"
@@ -357,17 +375,20 @@ export default function Page() {
                       {fmtPct(p.change_7d)}
                     </div>
 
-                    {/* Fees 24h (hanya kalau > 0) */}
-                    {showFeeCell ? (
-                      <div className="col-span-2 text-right">{`$${fmt.format(feesVal)}`}</div>
+                    {/* Fees 24h — jika header Fees tampil, baris juga harus selalu punya cell */}
+                    {showFees ? (
+                      <div className="col-span-2 text-right">
+                        {feesVal > 0 ? `$${fmt.format(feesVal)}` : <span className="text-neutral-500">—</span>}
+                      </div>
                     ) : null}
 
-                    {/* Link col: jika fees tidak dirender, ambil kolomnya agar tidak ada gap */}
-                    <div className={`${showFeeCell ? "col-span-1" : showFees ? "col-span-3" : "col-span-1"} text-center`}>
+                    {/* Link */}
+                    <div className="col-span-1 text-center">
                       {p.url ? (
                         <a
                           href={p.url}
                           target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex items-center justify-center text-blue-400 hover:text-blue-300"
                         >
                           <ExternalLink size={16} />
@@ -388,7 +409,7 @@ export default function Page() {
 
           <div className="px-4 py-3 text-xs text-neutral-500 border-t border-neutral-800">
             Data courtesy of{" "}
-            <a className="underline decoration-dotted" href="https://defillama.com/chain/base" target="_blank">
+            <a className="underline decoration-dotted" href="https://defillama.com/chain/base" target="_blank" rel="noopener noreferrer">
               DeFiLlama
             </a>. This is an independent community dashboard and not affiliated with Coinbase/Base.
           </div>
@@ -419,7 +440,7 @@ function KpiCard({
           <div className="text-sm text-neutral-400">{title}</div>
           <div className="text-2xl font-bold mt-1">{value}</div>
         </div>
-        <div className="opacity-70">{icon}</div>
+        {icon ? <div className="opacity-70">{icon}</div> : null}
       </div>
       {typeof trend === "number" && isFinite(trend) && (
         <div
