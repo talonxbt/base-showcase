@@ -240,7 +240,7 @@ export default function Page() {
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Base TVL (All-time)</h2>
-            <span className="text-xs text-neutral-400">Source: DeFiLlama API</span>
+            <span className="text-xs text-neutral-400"></span>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
