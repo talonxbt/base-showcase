@@ -22,7 +22,6 @@ import {
    Types & Utilities
 ========================= */
 type ChainPoint = { date: number; totalLiquidityUSD: number };
-
 type RankingRow = {
   name: string;
   category?: string;
@@ -43,34 +42,22 @@ const fmtPct = (n?: number) =>
   typeof n === "number" && isFinite(n) ? `${n > 0 ? "+" : ""}${n.toFixed(2)}%` : "—";
 const toDate = (ts: number) => new Date(ts * 1000);
 
-const CATEGORY_OPTIONS = [
-  { key: "All", label: "All" },
-  { key: "DEXes", label: "DEX" },
-  { key: "Lending", label: "Lending" },
-  { key: "Liquid Staking", label: "LST / Staking" },
-  { key: "Yield", label: "Yield" },
-  { key: "Derivatives", label: "Perps" },
-  { key: "Bridge", label: "Bridge" },
-] as const;
-
 /* =========================
-   Page Component
+   Component
 ========================= */
 export default function Page() {
-  // State
   const [chart, setChart] = useState<ChainPoint[] | null>(null);
   const [ranking, setRanking] = useState<RankingRow[] | null>(null);
   const [protocolCount, setProtocolCount] = useState<number>(0);
+  const [currentTvl, setCurrentTvl] = useState<number>(0);
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  // UI state
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [sortBy, setSortBy] = useState<"tvl" | "change_1d" | "change_7d" | "fees24h">("tvl");
 
-  /* ---------- helpers ---------- */
   async function fetchJson(url: string) {
     const r = await fetch(url, { cache: "no-store", headers: { accept: "application/json" } });
     const text = await r.text();
@@ -83,15 +70,19 @@ export default function Page() {
       try {
         setLoading(true);
 
-        // 1) TVL chart
+        // 0. Current TVL
+        const summary = await fetchJson("/api/base-summary");
+        setCurrentTvl(Number(summary?.tvl || 0));
+
+        // 1. Chart
         const chartJson = await fetchJson("/api/base-tvl");
         setChart(Array.isArray(chartJson) ? chartJson : []);
 
-        // 2) Protocol ranking top-100 via server proxy
+        // 2. Ranking
         const rankJson = await fetchJson("/api/base-ranking");
         setRanking(Array.isArray(rankJson) ? rankJson : []);
 
-        // 3) Total protocols on Base (opsional)
+        // 3. Protocol count
         try {
           const allProt = await fetchJson("/api/base-protocols");
           setProtocolCount(Array.isArray(allProt) ? allProt.length : 0);
@@ -104,18 +95,12 @@ export default function Page() {
         setErr(e?.message || "Failed to load data");
         setChart([]);
         setRanking([]);
-        setProtocolCount(0);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  /* ---------- KPI calculations ---------- */
-  const latestTVL = useMemo(
-    () => (Array.isArray(chart) && chart.length ? chart[chart.length - 1].totalLiquidityUSD : 0),
-    [chart]
-  );
   const prevTVL = useMemo(
     () =>
       Array.isArray(chart) && chart.length > 7
@@ -124,11 +109,10 @@ export default function Page() {
     [chart]
   );
   const change7d = useMemo(
-    () => (prevTVL ? ((latestTVL - prevTVL) / prevTVL) * 100 : undefined),
-    [latestTVL, prevTVL]
+    () => (prevTVL ? ((currentTvl - prevTVL) / prevTVL) * 100 : undefined),
+    [currentTvl, prevTVL]
   );
 
-  /* ---------- Filter + Sort ---------- */
   const visibleRows = useMemo(() => {
     const list = Array.isArray(ranking) ? ranking : [];
     const q = search.toLowerCase().trim();
@@ -136,9 +120,7 @@ export default function Page() {
     let arr = list.filter((p) => {
       const inCat = category === "All" || p.category === category;
       const inSearch =
-        !q ||
-        p.name.toLowerCase().includes(q) ||
-        (p.symbol || "").toLowerCase().includes(q);
+        !q || p.name.toLowerCase().includes(q) || (p.symbol || "").toLowerCase().includes(q);
       return inCat && inSearch;
     });
 
@@ -153,81 +135,63 @@ export default function Page() {
     return arr;
   }, [ranking, search, category, sortBy]);
 
-  // tampilkan kolom Fees hanya jika ada minimal satu baris dengan fees > 0 (header)
   const showFees = useMemo(
     () => visibleRows.some((p) => Number(p.fees24h || 0) > 0),
     [visibleRows]
   );
 
-  /* ---------- Render ---------- */
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
-      {/* Header */}
-      <header className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              Base Intelligence Dashboard
-            </h1>
-            <p className="text-neutral-300 mt-2">
-              Created by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
-            </p>
-          </div>
+      {/* HEADER */}
+      <header className="max-w-7xl mx-auto px-4 py-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold">Base Intelligence Dashboard</h1>
+          <p className="text-neutral-300 mt-2">
+            Created by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
+          </p>
+        </div>
 
-          {/* Socials + Visit Base */}
-          <div className="flex items-center gap-2">
-            {/* X / Twitter */}
-            <a
-              href="https://x.com/TalonXBT"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm hover:border-blue-500"
-              aria-label="X (Twitter)"
-              title="X (Twitter)"
-            >
-              <XIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">X</span>
-            </a>
-
-            {/* Discord */}
-            <a
-              href="https://discord.gg/buildonbase"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm hover:border-indigo-500"
-              aria-label="Discord"
-              title="Discord"
-            >
-              <DiscordIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Discord</span>
-            </a>
-
-            {/* Visit Base */}
-            <a
-              href="https://www.base.org/"
-              target="_blank"
-              className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
-              rel="noopener noreferrer"
-            >
-              Visit Base <ExternalLink size={16} />
-            </a>
-          </div>
+        <div className="flex gap-2">
+          <a
+            href="https://x.com/TalonXBT"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 px-3 py-1.5 hover:border-blue-500 text-sm"
+          >
+            <XIcon className="w-4 h-4" /> <span className="hidden sm:inline">X</span>
+          </a>
+          <a
+            href="https://discord.gg/buildonbase"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 px-3 py-1.5 hover:border-indigo-500 text-sm"
+          >
+            <DiscordIcon className="w-4 h-4" /> <span className="hidden sm:inline">Discord</span>
+          </a>
+          <a
+            href="https://www.base.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm"
+          >
+            Visit Base <ExternalLink size={14} />
+          </a>
         </div>
       </header>
 
-      {/* KPI Cards (4 cards termasuk Build → Base Ecosystem) */}
+      {/* KPI */}
       <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard title="Chain TVL" value={`$${fmt.format(latestTVL || 0)}`} icon={<LineChart className="opacity-80" />} />
+        <KpiCard title="Chain TVL" value={`$${fmt.format(currentTvl || 0)}`} icon={<LineChart />} />
         <KpiCard title="7D Change" value={fmtPct(change7d)} trend={change7d} />
         <KpiCard title="Protocols on Base" value={`${protocolCount}`} />
         <KpiCard
           title="Build"
           value={
             <a
-              className="underline decoration-dotted"
               href="https://www.base.org/ecosystem"
               target="_blank"
               rel="noopener noreferrer"
+              className="underline decoration-dotted"
             >
               Base Ecosystem
             </a>
@@ -235,13 +199,10 @@ export default function Page() {
         />
       </section>
 
-      {/* TVL Chart */}
+      {/* TVL CHART */}
       <section className="max-w-7xl mx-auto px-4 mt-8">
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Base TVL (All-time)</h2>
-            <span className="text-xs text-neutral-400"></span>
-          </div>
+          <h2 className="text-lg font-semibold mb-3">Base TVL (All-time)</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
@@ -261,7 +222,7 @@ export default function Page() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="date" minTickGap={32} tick={{ fill: "#a1a1aa" }} />
+                <XAxis dataKey="date" tick={{ fill: "#a1a1aa" }} />
                 <YAxis tickFormatter={(v) => `$${fmt.format(v)}`} tick={{ fill: "#a1a1aa" }} />
                 <Tooltip
                   formatter={(v: number) => `$${fmt.format(v)}`}
@@ -274,90 +235,36 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Controls */}
-      <section className="max-w-7xl mx-auto px-4 mt-8">
-        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="relative flex-1">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search protocol (e.g., Aerodrome, Uniswap)"
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-2 pl-10 outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <Search className="absolute left-3 top-2.5 text-neutral-500" size={18} />
-            </div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-neutral-900 border border-neutral-800 rounded-2xl px-3 py-2"
-            >
-              <option value="tvl">Sort: TVL</option>
-              <option value="change_1d">Sort: 24h %</option>
-              <option value="change_7d">Sort: 7d %</option>
-              <option value="fees24h">Sort: Fees 24h</option>
-            </select>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {CATEGORY_OPTIONS.map((c) => (
-              <button
-                key={c.key}
-                onClick={() => setCategory(c.key)}
-                className={`px-3 py-1.5 rounded-2xl border ${
-                  category === c.key
-                    ? "bg-blue-600 border-blue-500"
-                    : "bg-neutral-900 border-neutral-800 hover:border-neutral-700"
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Protocol Rankings (Top 100 Base) — no Revenue; fix Fees column alignment */}
-      <section className="max-w-7xl mx-auto px-4 mt-4 pb-16">
+      {/* TABLE */}
+      <section className="max-w-7xl mx-auto px-4 mt-8 pb-16">
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-          {/* Header */}
           <div className="grid grid-cols-12 px-4 py-3 text-sm text-neutral-400 border-b border-neutral-800">
             <div className={`${showFees ? "col-span-3" : "col-span-5"}`}>Name</div>
             <div className="col-span-2">Category</div>
             <div className="col-span-2 text-right">TVL</div>
             <div className="col-span-1 text-right">1d</div>
             <div className="col-span-1 text-right">7d</div>
-            {showFees ? <div className="col-span-2 text-right">Fees 24h</div> : null}
+            {showFees && <div className="col-span-2 text-right">Fees 24h</div>}
             <div className="col-span-1 text-center">Link</div>
           </div>
-
-          {loading && <div className="p-6 text-neutral-400">Loading live data…</div>}
-          {err && <div className="p-6 text-red-400 break-words">Error: {String(err)}</div>}
 
           {!loading && !err && (
             <div className="divide-y divide-neutral-800">
               {visibleRows.map((p, i) => {
                 const feesVal = Number(p.fees24h || 0);
-
                 return (
                   <div
                     key={`${p.name}-${i}`}
                     className="grid grid-cols-12 px-4 py-3 items-center hover:bg-neutral-800/30"
                   >
-                    {/* Name */}
                     <div className={`${showFees ? "col-span-3" : "col-span-5"} font-semibold`}>
                       {i + 1}. {p.name}{" "}
-                      {p.symbol ? <span className="text-neutral-400 font-normal">({p.symbol})</span> : null}
+                      {p.symbol && <span className="text-neutral-400 font-normal">({p.symbol})</span>}
                     </div>
-
-                    {/* Category */}
                     <div className="col-span-2 text-neutral-400 text-sm">{p.category || "—"}</div>
-
-                    {/* TVL */}
                     <div className="col-span-2 text-right font-medium">
                       {typeof p.tvl === "number" ? `$${fmt.format(p.tvl)}` : "—"}
                     </div>
-
-                    {/* 1d */}
                     <div
                       className={`col-span-1 text-right ${
                         Number(p.change_1d) >= 0 ? "text-emerald-400" : "text-red-400"
@@ -365,8 +272,6 @@ export default function Page() {
                     >
                       {fmtPct(p.change_1d)}
                     </div>
-
-                    {/* 7d */}
                     <div
                       className={`col-span-1 text-right ${
                         Number(p.change_7d) >= 0 ? "text-emerald-400" : "text-red-400"
@@ -374,15 +279,11 @@ export default function Page() {
                     >
                       {fmtPct(p.change_7d)}
                     </div>
-
-                    {/* Fees 24h — jika header Fees tampil, baris juga harus selalu punya cell */}
-                    {showFees ? (
+                    {showFees && (
                       <div className="col-span-2 text-right">
                         {feesVal > 0 ? `$${fmt.format(feesVal)}` : <span className="text-neutral-500">—</span>}
                       </div>
-                    ) : null}
-
-                    {/* Link */}
+                    )}
                     <div className="col-span-1 text-center">
                       {p.url ? (
                         <a
@@ -400,18 +301,17 @@ export default function Page() {
                   </div>
                 );
               })}
-
-              {visibleRows.length === 0 && (
-                <div className="px-4 py-6 text-sm text-neutral-400">No protocols found for this filter.</div>
-              )}
             </div>
           )}
 
+          {loading && <div className="p-6 text-neutral-400">Loading data…</div>}
+          {err && <div className="p-6 text-red-400">Error: {err}</div>}
+
           <div className="px-4 py-3 text-xs text-neutral-500 border-t border-neutral-800">
             Data courtesy of{" "}
-            <a className="underline decoration-dotted" href="https://defillama.com/chain/base" target="_blank" rel="noopener noreferrer">
+            <a href="https://defillama.com/chain/base" target="_blank" className="underline decoration-dotted">
               DeFiLlama
-            </a>. This is an independent community dashboard and not affiliated with Coinbase/Base.
+            </a>. Not affiliated with Coinbase/Base.
           </div>
         </div>
       </section>
@@ -422,17 +322,7 @@ export default function Page() {
 /* =========================
    Small Components
 ========================= */
-function KpiCard({
-  title,
-  value,
-  icon,
-  trend,
-}: {
-  title: string;
-  value: React.ReactNode;
-  icon?: React.ReactNode;
-  trend?: number;
-}) {
+function KpiCard({ title, value, icon, trend }: any) {
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
       <div className="flex items-center justify-between">
@@ -440,7 +330,7 @@ function KpiCard({
           <div className="text-sm text-neutral-400">{title}</div>
           <div className="text-2xl font-bold mt-1">{value}</div>
         </div>
-        {icon ? <div className="opacity-70">{icon}</div> : null}
+        {icon && <div className="opacity-70">{icon}</div>}
       </div>
       {typeof trend === "number" && isFinite(trend) && (
         <div
@@ -456,11 +346,11 @@ function KpiCard({
 }
 
 /* =========================
-   Icons (inline SVG)
+   Icons
 ========================= */
 function XIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M18.244 2H21l-7.97 9.13L22 22h-6.02l-4.7-5.5L5.02 22H2l8.58-9.83L2.5 2h6.1l4.21 4.93L18.244 2z" />
     </svg>
   );
@@ -468,8 +358,5 @@ function XIcon({ className }: { className?: string }) {
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
-      <path d="M20.317 4.369A18.152 18.152 0 0016.8 3.2l-.2.4a16.3 16.3 0 00-4.6 0l-.2-.4a18.18 18.18 0 00-3.52 1.169C5.03 6.056 3.6 9.2 3.6 12.8c0 .32 0 .64.04.96A8.5 8.5 0 008 15.6l.56-.88a6.1 6.1 0 01-1.6-.84c.12-.08.24-.16.36-.24a6.88 6.88 0 005.68 3.04 6.88 6.88 0 005.68-3.04c.12.08.24.16.36.24-.48.36-1.04.64-1.6.84l.56.88a8.5 8.5 0 004.36-1.84c.04-.32.04-.64.04-.96 0-3.6-1.43-6.744-3.683-8.431zM9.8 13.6c-.66 0-1.2-.64-1.2-1.44s.54-1.44 1.2-1.44 1.2.64 1.2 1.44-.54 1.44-1.2 1.44zm4.4 0c-.66 0-1.2-.64-1.2-1.44s.54-1.44 1.2-1.44 1.2.64 1.2 1.44-.54 1.44-1.2 1.44z" />
-    </svg>
-  );
-}
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20.317 4.369A18.152 18.152 0 0016.8 3.2l-.2.4a16.3 16.3 0 00-4.6 0l-.2-.4a18.18 18.18 0 00-3.52 1.169C5.
