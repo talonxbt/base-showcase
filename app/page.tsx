@@ -357,6 +357,21 @@ function XIcon({ className }: { className?: string }) {
 }
 
 function DiscordIcon({ className }: { className?: string }) {
+  // Simple & valid Discord-style glyph (no long path strings)
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M20.317 4.369A18.152 18.152 0 0016.8 3.2l-.2.4a16.3 16.3 0 00-4.6 0l-.2-.4a18.18 18.18 0 00-3.52 1.169C5.
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="currentColor"
+    >
+      {/* head */}
+      <path d="M20 7.2c-1.1-.6-2.3-1-3.5-1.2l-.3.6a12 12 0 0 0-4.4 0l-.3-.6c-1.2.2-2.4.6-3.5 1.2C5.2 8.6 4 10.9 4 13.4c0 .3 0 .6.1.9.9.7 1.8 1.2 2.9 1.6l.6-.9c-.5-.2-1-.4-1.5-.7.2-.1.4-.2.6-.3a6.9 6.9 0 0 0 5.3 2.8 6.9 6.9 0 0 0 5.3-2.8c.2.1.4.2.6.3-.5.3-1 .5-1.5.7l.6.9c1.1-.4 2-.9 2.9-1.6.1-.3.1-.6.1-.9 0-2.5-1.2-4.8-3.2-6.2Z" />
+      {/* eyes */}
+      <circle cx="9.3" cy="12.2" r="1.1" />
+      <circle cx="14.7" cy="12.2" r="1.1" />
+    </svg>
+  );
+}
+
