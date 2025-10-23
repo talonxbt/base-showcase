@@ -31,7 +31,7 @@ type RankingRow = {
   change_1d?: number;
   change_7d?: number;
   change_1m?: number;
-  fees24h?: number;    // revenue dihilangkan dari UI
+  fees24h?: number; // revenue dihilangkan dari UI
   url?: string;
 };
 
@@ -45,7 +45,7 @@ const toDate = (ts: number) => new Date(ts * 1000);
 
 const CATEGORY_OPTIONS = [
   { key: "All", label: "All" },
-  { key: "Dexes", label: "DEX" },
+  { key: "DEXes", label: "DEX" },
   { key: "Lending", label: "Lending" },
   { key: "Liquid Staking", label: "LST / Staking" },
   { key: "Yield", label: "Yield" },
@@ -74,7 +74,7 @@ export default function Page() {
   async function fetchJson(url: string) {
     const r = await fetch(url, { cache: "no-store", headers: { accept: "application/json" } });
     const text = await r.text();
-    if (!r.ok) throw new Error(`${url} -> ${r.status} ${text.slice(0, 100)}`);
+    if (!r.ok) throw new Error(`${url} -> ${r.status} ${text.slice(0, 120)}`);
     return JSON.parse(text);
   }
 
@@ -83,7 +83,7 @@ export default function Page() {
       try {
         setLoading(true);
 
-        // 1) TVL chart (server proxy)
+        // 1) TVL chart
         const chartJson = await fetchJson("/api/base-tvl");
         setChart(Array.isArray(chartJson) ? chartJson : []);
 
@@ -128,7 +128,7 @@ export default function Page() {
     [latestTVL, prevTVL]
   );
 
-  /* ---------- Filter + Sort for ranking ---------- */
+  /* ---------- Filter + Sort ---------- */
   const visibleRows = useMemo(() => {
     const list = Array.isArray(ranking) ? ranking : [];
     const q = search.toLowerCase().trim();
@@ -163,40 +163,62 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       {/* Header */}
-<header className="max-w-7xl mx-auto px-4 py-8">
-  <div className="flex items-center justify-between gap-4">
-    <div>
-      <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-        Base Ecosystem — Showcase & Analytics
-      </h1>
-      <p className="text-neutral-300 mt-2">
-        Created by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
-      </p>
-    </div>
-    <a
-      href="https://www.base.org/"
-      target="_blank"
-      className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
-    >
-      Visit Base <ExternalLink size={16} />
-    </a>
-  </div>
-</header>
+      <header className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+              Base Ecosystem — Showcase & Analytics
+            </h1>
+            <p className="text-neutral-300 mt-2">
+              Curated by <span className="font-semibold">TalonXBT</span>. Live TVL & protocol rankings.
+            </p>
+          </div>
 
+          {/* Socials + Visit Base */}
+          <div className="flex items-center gap-2">
+            {/* X / Twitter */}
+            <a
+              href="https://x.com/TalonXBT"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm hover:border-blue-500"
+              aria-label="X (Twitter)"
+              title="X (Twitter)"
+            >
+              <XIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">X</span>
+            </a>
 
-      {/* KPI Cards */}
-      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Discord */}
+            <a
+              href="https://discord.gg/buildonbase"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm hover:border-indigo-500"
+              aria-label="Discord"
+              title="Discord"
+            >
+              <DiscordIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Discord</span>
+            </a>
+
+            {/* Visit Base */}
+            <a
+              href="https://www.base.org/"
+              target="_blank"
+              className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
+            >
+              Visit Base <ExternalLink size={16} />
+            </a>
+          </div>
+        </div>
+      </header>
+
+      {/* KPI Cards (tanpa Data Source) */}
+      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
         <KpiCard title="Chain TVL" value={`$${fmt.format(latestTVL || 0)}`} icon={<LineChart className="opacity-80" />} />
         <KpiCard title="7D Change" value={fmtPct(change7d)} trend={change7d} />
         <KpiCard title="Protocols on Base" value={`${protocolCount}`} />
-        <KpiCard
-          title="Build"
-          value={
-            <a className="underline decoration-dotted" href="https://www.base.org/ecosystem" target="_blank">
-              Base Ecosystem
-            </a>
-          }
-        />
       </section>
 
       {/* TVL Chart */}
@@ -301,6 +323,7 @@ export default function Page() {
             <div className="divide-y divide-neutral-800">
               {visibleRows.map((p, i) => {
                 const feesVal = Number(p.fees24h || 0);
+                const showFeeCell = showFees && feesVal > 0; // render cell Fees hanya kalau > 0
                 return (
                   <div
                     key={`${p.name}-${i}`}
@@ -334,13 +357,13 @@ export default function Page() {
                       {fmtPct(p.change_7d)}
                     </div>
 
-                    {showFees ? (
-                      <div className="col-span-2 text-right">
-                        {feesVal > 0 ? `$${fmt.format(feesVal)}` : "—"}
-                      </div>
+                    {/* Fees 24h (hanya kalau > 0) */}
+                    {showFeeCell ? (
+                      <div className="col-span-2 text-right">{`$${fmt.format(feesVal)}`}</div>
                     ) : null}
 
-                    <div className="col-span-1 text-center">
+                    {/* Link col: jika fees tidak dirender, ambil kolomnya agar tidak ada gap */}
+                    <div className={`${showFeeCell ? "col-span-1" : showFees ? "col-span-3" : "col-span-1"} text-center`}>
                       {p.url ? (
                         <a
                           href={p.url}
@@ -358,9 +381,7 @@ export default function Page() {
               })}
 
               {visibleRows.length === 0 && (
-                <div className="px-4 py-6 text-sm text-neutral-400">
-                  No protocols found for this filter.
-                </div>
+                <div className="px-4 py-6 text-sm text-neutral-400">No protocols found for this filter.</div>
               )}
             </div>
           )}
@@ -410,5 +431,24 @@ function KpiCard({
         </div>
       )}
     </div>
+  );
+}
+
+/* =========================
+   Icons (inline SVG)
+========================= */
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
+      <path d="M18.244 2H21l-7.97 9.13L22 22h-6.02l-4.7-5.5L5.02 22H2l8.58-9.83L2.5 2h6.1l4.21 4.93L18.244 2z" />
+    </svg>
+  );
+}
+
+function DiscordIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
+      <path d="M20.317 4.369A18.152 18.152 0 0016.8 3.2l-.2.4a16.3 16.3 0 00-4.6 0l-.2-.4a18.18 18.18 0 00-3.52 1.169C5.03 6.056 3.6 9.2 3.6 12.8c0 .32 0 .64.04.96A8.5 8.5 0 008 15.6l.56-.88a6.1 6.1 0 01-1.6-.84c.12-.08.24-.16.36-.24a6.88 6.88 0 005.68 3.04 6.88 6.88 0 005.68-3.04c.12.08.24.16.36.24-.48.36-1.04.64-1.6.84l.56.88a8.5 8.5 0 004.36-1.84c.04-.32.04-.64.04-.96 0-3.6-1.43-6.744-3.683-8.431zM9.8 13.6c-.66 0-1.2-.64-1.2-1.44s.54-1.44 1.2-1.44 1.2.64 1.2 1.44-.54 1.44-1.2 1.44zm4.4 0c-.66 0-1.2-.64-1.2-1.44s.54-1.44 1.2-1.44 1.2.64 1.2 1.44-.54 1.44-1.2 1.44z" />
+    </svg>
   );
 }
